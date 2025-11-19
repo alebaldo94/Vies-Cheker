@@ -117,7 +117,7 @@ class VIESCheckerGUI:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(2, weight=1)
+        main_frame.rowconfigure(3, weight=1)
 
         # --- SEZIONE INPUT ---
         input_frame = ttk.LabelFrame(main_frame, text="Verifica Partita IVA", padding="10")
@@ -145,9 +145,19 @@ class VIESCheckerGUI:
         self.requester_label = ttk.Label(input_frame, text=info_text, font=('Arial', 9), foreground='gray')
         self.requester_label.grid(row=1, column=0, columnspan=3, sticky=tk.W, pady=(5, 0))
 
+        # --- PULSANTI AZIONI RAPIDE ---
+        quick_actions_frame = ttk.Frame(main_frame)
+        quick_actions_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        ttk.Label(quick_actions_frame, text="Azioni rapide:", font=('Arial', 9, 'bold')).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(quick_actions_frame, text="Seleziona Tutti", command=self.select_all).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(quick_actions_frame, text="Deseleziona Tutti", command=self.deselect_all).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(quick_actions_frame, text="Aggiorna Selezionati", command=self.update_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(quick_actions_frame, text="Stampa Selezionati", command=self.print_selected).pack(side=tk.LEFT)
+
         # --- SEZIONE RISULTATO ---
         result_frame = ttk.LabelFrame(main_frame, text="Risultato Verifica", padding="10")
-        result_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        result_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         result_frame.columnconfigure(0, weight=1)
 
         # Area risultato con scroll
@@ -166,7 +176,7 @@ class VIESCheckerGUI:
 
         # --- SEZIONE STORICO ---
         history_frame = ttk.LabelFrame(main_frame, text="Verifiche Recenti", padding="10")
-        history_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        history_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         history_frame.columnconfigure(0, weight=1)
         history_frame.rowconfigure(0, weight=1)
 
@@ -218,7 +228,7 @@ class VIESCheckerGUI:
 
         # --- BARRA DI STATO ---
         status_frame = ttk.Frame(main_frame)
-        status_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
+        status_frame.grid(row=4, column=0, sticky=(tk.W, tk.E))
         status_frame.columnconfigure(0, weight=1)
 
         status_label = ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
@@ -550,21 +560,26 @@ class VIESCheckerGUI:
             messagebox.showwarning("Attenzione", "Seleziona almeno una verifica da stampare")
             return
 
-        # Chiedi quante copie
-        copies = simpledialog.askinteger(
-            "Numero Copie",
-            f"Quante copie stampare per ogni verifica?\n({len(selected_ids)} verifiche selezionate)",
-            minvalue=1,
-            maxvalue=10,
-            initialvalue=1
-        )
-
-        if copies is None:
-            return
-
         # Ottiene le verifiche selezionate
         checks = self.db.get_all_checks()
         to_print = [c for c in checks if str(c['id']) in selected_ids]
+
+        # Mostra dialogo per selezione copie individuali
+        copies_dict = self.show_copies_dialog(to_print)
+
+        if copies_dict is None:
+            return  # Utente ha annullato
+
+        # Prepara la lista con le copie
+        print_list = []
+        for check in to_print:
+            copies = copies_dict.get(check['id'], 1)
+            for _ in range(copies):
+                print_list.append(check)
+
+        if not print_list:
+            messagebox.showinfo("Info", "Nessuna copia da stampare")
+            return
 
         # Chiedi il nome del file
         filename = filedialog.asksaveasfilename(
@@ -576,7 +591,7 @@ class VIESCheckerGUI:
         if filename:
             try:
                 self.status_var.set("Generazione PDF in corso...")
-                pdf_file = self.pdf_printer.create_pdf(to_print, filename, copies)
+                pdf_file = self.pdf_printer.create_pdf_single_pages(print_list, filename)
                 self.status_var.set(f"PDF creato: {pdf_file}")
 
                 # Chiedi se aprire il PDF
@@ -585,6 +600,139 @@ class VIESCheckerGUI:
 
             except Exception as e:
                 messagebox.showerror("Errore", f"Errore durante la creazione del PDF:\n{str(e)}")
+
+    def show_copies_dialog(self, checks):
+        """
+        Mostra un dialogo per selezionare il numero di copie per ogni verifica
+
+        Args:
+            checks (list): Lista di verifiche
+
+        Returns:
+            dict: Dizionario {check_id: num_copie} o None se annullato
+        """
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Seleziona Numero Copie")
+        dialog.geometry("700x500")
+
+        # Centra il dialogo
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # Frame principale
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Titolo
+        title = ttk.Label(
+            main_frame,
+            text="Seleziona quante copie stampare per ogni verifica",
+            font=('Arial', 11, 'bold')
+        )
+        title.pack(pady=(0, 10))
+
+        # Frame con scrollbar per la lista
+        list_frame = ttk.Frame(main_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        # Canvas con scrollbar
+        canvas = tk.Canvas(list_frame)
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Headers
+        headers_frame = ttk.Frame(scrollable_frame)
+        headers_frame.pack(fill=tk.X, pady=(0, 5))
+
+        ttk.Label(headers_frame, text="Partita IVA", width=20, font=('Arial', 9, 'bold')).pack(side=tk.LEFT, padx=5)
+        ttk.Label(headers_frame, text="Nome/Ragione Sociale", width=40, font=('Arial', 9, 'bold')).pack(side=tk.LEFT, padx=5)
+        ttk.Label(headers_frame, text="Copie", width=8, font=('Arial', 9, 'bold')).pack(side=tk.LEFT, padx=5)
+
+        # Separator
+        ttk.Separator(scrollable_frame, orient='horizontal').pack(fill=tk.X, pady=5)
+
+        # Dizionario per tracking spinbox
+        spinbox_vars = {}
+
+        # Riga per ogni verifica
+        for check in checks:
+            row_frame = ttk.Frame(scrollable_frame)
+            row_frame.pack(fill=tk.X, pady=2)
+
+            # P.IVA
+            vat_label = ttk.Label(row_frame, text=check['vat_number'], width=20)
+            vat_label.pack(side=tk.LEFT, padx=5)
+
+            # Nome (troncato se troppo lungo)
+            name_text = check['name'][:50] if check['name'] else 'N/A'
+            name_label = ttk.Label(row_frame, text=name_text, width=40)
+            name_label.pack(side=tk.LEFT, padx=5)
+
+            # Spinbox per copie
+            var = tk.IntVar(value=1)
+            spinbox = ttk.Spinbox(
+                row_frame,
+                from_=0,
+                to=10,
+                textvariable=var,
+                width=8
+            )
+            spinbox.pack(side=tk.LEFT, padx=5)
+
+            spinbox_vars[check['id']] = var
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Frame pulsanti
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        # Variabile per il risultato
+        result = {'cancelled': True, 'copies': {}}
+
+        def on_ok():
+            result['cancelled'] = False
+            result['copies'] = {check_id: var.get() for check_id, var in spinbox_vars.items()}
+            dialog.destroy()
+
+        def on_cancel():
+            result['cancelled'] = True
+            dialog.destroy()
+
+        def set_all_copies():
+            """Imposta lo stesso numero di copie per tutti"""
+            num = simpledialog.askinteger(
+                "Imposta Copie",
+                "Quante copie per tutte le verifiche?",
+                minvalue=0,
+                maxvalue=10,
+                initialvalue=1,
+                parent=dialog
+            )
+            if num is not None:
+                for var in spinbox_vars.values():
+                    var.set(num)
+
+        ttk.Button(button_frame, text="Imposta tutte...", command=set_all_copies).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="OK", command=on_ok).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Annulla", command=on_cancel).pack(side=tk.RIGHT, padx=5)
+
+        # Aspetta che il dialogo venga chiuso
+        dialog.wait_window()
+
+        if result['cancelled']:
+            return None
+
+        return result['copies']
 
     def open_file(self, filepath):
         """Apre un file con l'applicazione predefinita"""

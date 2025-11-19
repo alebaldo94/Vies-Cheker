@@ -65,14 +65,13 @@ class PDFPrinter:
             fontName='Helvetica-Bold'
         ))
 
-    def create_pdf(self, checks, filename=None, copies_per_check=1):
+    def create_pdf_single_pages(self, checks, filename=None):
         """
-        Crea un PDF con le verifiche
+        Crea un PDF con le verifiche (una per pagina)
 
         Args:
-            checks (list): Lista di verifiche da stampare
+            checks (list): Lista di verifiche da stampare (già duplicate per copie)
             filename (str): Nome del file PDF (opzionale)
-            copies_per_check (int): Numero di copie per ogni verifica
 
         Returns:
             str: Percorso del file creato
@@ -99,123 +98,113 @@ class PDFPrinter:
 
         # Per ogni verifica
         for check_idx, check in enumerate(checks):
-            # Ripeti per il numero di copie richiesto
-            for copy_num in range(copies_per_check):
-                # Titolo
-                story.append(Paragraph(
-                    "VERIFICA PARTITA IVA EUROPEA",
-                    self.styles['CustomTitle']
-                ))
-                story.append(Spacer(1, 0.5*cm))
+            # Titolo
+            story.append(Paragraph(
+                "VERIFICA PARTITA IVA EUROPEA",
+                self.styles['CustomTitle']
+            ))
+            story.append(Spacer(1, 0.5*cm))
 
-                # Info sistema VIES
-                story.append(Paragraph(
-                    "Sistema VIES - VAT Information Exchange System",
-                    self.styles['Normal']
-                ))
-                story.append(Paragraph(
-                    "Commissione Europea",
-                    self.styles['Normal']
-                ))
-                story.append(Spacer(1, 1*cm))
+            # Info sistema VIES
+            story.append(Paragraph(
+                "Sistema VIES - VAT Information Exchange System",
+                self.styles['Normal']
+            ))
+            story.append(Paragraph(
+                "Commissione Europea",
+                self.styles['Normal']
+            ))
+            story.append(Spacer(1, 1.5*cm))
 
-                # Dati verifica in tabella
-                data = []
+            # Dati verifica in tabella - ESTESA a tutta la larghezza A4
+            data = []
 
-                # Partita IVA
-                data.append([
-                    Paragraph("<b>Partita IVA:</b>", self.styles['Label']),
-                    Paragraph(check['vat_number'], self.styles['Value'])
-                ])
+            # Partita IVA
+            data.append([
+                Paragraph("<b>Partita IVA:</b>", self.styles['Label']),
+                Paragraph(check['vat_number'], self.styles['Value'])
+            ])
 
-                # Codice Paese
-                data.append([
-                    Paragraph("<b>Codice Paese:</b>", self.styles['Label']),
-                    Paragraph(check['country_code'], self.styles['Value'])
-                ])
+            # Codice Paese
+            data.append([
+                Paragraph("<b>Codice Paese:</b>", self.styles['Label']),
+                Paragraph(check['country_code'], self.styles['Value'])
+            ])
 
-                # Validità
-                valid_text = "✓ VALIDA" if check['valid'] else "✗ NON VALIDA"
-                valid_style = 'Valid' if check['valid'] else 'Invalid'
-                data.append([
-                    Paragraph("<b>Validità:</b>", self.styles['Label']),
-                    Paragraph(valid_text, self.styles[valid_style])
-                ])
+            # Validità
+            valid_text = "✓ VALIDA" if check['valid'] else "✗ NON VALIDA"
+            valid_style = 'Valid' if check['valid'] else 'Invalid'
+            data.append([
+                Paragraph("<b>Validità:</b>", self.styles['Label']),
+                Paragraph(valid_text, self.styles[valid_style])
+            ])
 
-                if check['valid']:
-                    # Nome/Ragione Sociale
-                    if check['name']:
-                        data.append([
-                            Paragraph("<b>Nome/Ragione Sociale:</b>", self.styles['Label']),
-                            Paragraph(check['name'], self.styles['Value'])
-                        ])
-
-                    # Indirizzo
-                    if check['address']:
-                        # Sostituisci newline con <br/>
-                        address = check['address'].replace('\n', '<br/>')
-                        data.append([
-                            Paragraph("<b>Indirizzo:</b>", self.styles['Label']),
-                            Paragraph(address, self.styles['Value'])
-                        ])
-
-                # P.IVA Richiedente
-                if check.get('requester_vat'):
+            if check['valid']:
+                # Nome/Ragione Sociale
+                if check['name']:
                     data.append([
-                        Paragraph("<b>P.IVA Richiedente:</b>", self.styles['Label']),
-                        Paragraph(check['requester_vat'], self.styles['Value'])
+                        Paragraph("<b>Nome/Ragione Sociale:</b>", self.styles['Label']),
+                        Paragraph(check['name'], self.styles['Value'])
                     ])
 
-                # Data verifica
-                data.append([
-                    Paragraph("<b>Data Verifica:</b>", self.styles['Label']),
-                    Paragraph(check['request_date'], self.styles['Value'])
-                ])
-
-                # Errore (se presente)
-                if check.get('error'):
+                # Indirizzo
+                if check['address']:
+                    # Sostituisci newline con <br/>
+                    address = check['address'].replace('\n', '<br/>')
                     data.append([
-                        Paragraph("<b>Errore:</b>", self.styles['Label']),
-                        Paragraph(check['error'], self.styles['Value'])
+                        Paragraph("<b>Indirizzo:</b>", self.styles['Label']),
+                        Paragraph(address, self.styles['Value'])
                     ])
 
-                # Crea tabella
-                table = Table(data, colWidths=[5*cm, 12*cm])
-                table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                    ('TOPPADDING', (0, 0), (-1, -1), 5),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-                ]))
+            # P.IVA Richiedente
+            if check.get('requester_vat'):
+                data.append([
+                    Paragraph("<b>P.IVA Richiedente:</b>", self.styles['Label']),
+                    Paragraph(check['requester_vat'], self.styles['Value'])
+                ])
 
-                story.append(table)
-                story.append(Spacer(1, 2*cm))
+            # Data verifica
+            data.append([
+                Paragraph("<b>Data Verifica:</b>", self.styles['Label']),
+                Paragraph(check['request_date'], self.styles['Value'])
+            ])
 
-                # Footer
-                footer_text = f"Documento {check_idx + 1} di {len(checks)}"
-                if copies_per_check > 1:
-                    footer_text += f" - Copia {copy_num + 1} di {copies_per_check}"
-                footer_text += f" | Generato il {datetime.now().strftime('%d/%m/%Y alle %H:%M')}"
+            # Errore (se presente)
+            if check.get('error'):
+                data.append([
+                    Paragraph("<b>Errore:</b>", self.styles['Label']),
+                    Paragraph(check['error'], self.styles['Value'])
+                ])
 
-                story.append(Paragraph(
-                    footer_text,
-                    self.styles['Normal']
-                ))
+            # Crea tabella ESTESA - usa tutta la larghezza disponibile dell'A4
+            # A4 width = 21cm, margini 2cm sx + 2cm dx = 17cm disponibili
+            table = Table(data, colWidths=[5*cm, 12*cm])
+            table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f0f0f0')),
+            ]))
 
-                # Note legali
-                story.append(Spacer(1, 0.5*cm))
-                story.append(Paragraph(
-                    "<i>Nota: Questa verifica è indicativa. Per informazioni ufficiali consultare "
-                    "https://ec.europa.eu/taxation_customs/vies/</i>",
-                    self.styles['Normal']
-                ))
+            story.append(table)
+            story.append(Spacer(1, 2*cm))
 
-                # Pagebreak (tranne per l'ultima pagina)
-                if check_idx < len(checks) - 1 or copy_num < copies_per_check - 1:
-                    from reportlab.platypus import PageBreak
-                    story.append(PageBreak())
+            # Footer - SENZA NOTA LEGALE
+            footer_text = f"Pagina {check_idx + 1} di {len(checks)} | Generato il {datetime.now().strftime('%d/%m/%Y alle %H:%M')}"
+
+            story.append(Paragraph(
+                footer_text,
+                self.styles['Normal']
+            ))
+
+            # Pagebreak (tranne per l'ultima pagina)
+            if check_idx < len(checks) - 1:
+                from reportlab.platypus import PageBreak
+                story.append(PageBreak())
 
         # Genera il PDF
         doc.build(story)
