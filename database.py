@@ -267,3 +267,47 @@ class VATDatabase:
             'invalid_checks': invalid,
             'unique_vats': unique_vats
         }
+
+    def check_duplicate(self, vat_number, hours=24):
+        """
+        Verifica se una partita IVA è stata controllata recentemente
+
+        Args:
+            vat_number (str): Partita IVA da verificare
+            hours (int): Numero di ore da considerare (default 24)
+
+        Returns:
+            dict or None: L'ultima verifica se trovata entro il periodo, None altrimenti
+        """
+        from datetime import datetime, timedelta
+
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        # Calcola il timestamp minimo
+        min_date = (datetime.now() - timedelta(hours=hours)).strftime('%Y-%m-%d %H:%M:%S')
+
+        cursor.execute('''
+            SELECT * FROM vat_checks
+            WHERE vat_number = ? AND request_date >= ?
+            ORDER BY request_date DESC
+            LIMIT 1
+        ''', (vat_number.strip().upper(), min_date))
+
+        row = cursor.fetchone()
+        self.close()
+
+        if row:
+            return {
+                'id': row['id'],
+                'vat_number': row['vat_number'],
+                'country_code': row['country_code'],
+                'valid': bool(row['valid']),
+                'name': row['name'],
+                'address': row['address'],
+                'requester_vat': row['requester_vat'] if 'requester_vat' in row.keys() else '',
+                'request_date': row['request_date'],
+                'error': row['error']
+            }
+
+        return None

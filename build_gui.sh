@@ -32,6 +32,7 @@ pyinstaller --onefile \
     --add-data "database.py:." \
     --add-data "excel_export.py:." \
     --add-data "settings.py:." \
+    --add-data "pdf_printer.py:." \
     vies_checker_gui.py
 
 if [ $? -ne 0 ]; then

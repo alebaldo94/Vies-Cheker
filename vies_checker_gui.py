@@ -5,9 +5,11 @@ Programma per la verifica delle partite IVA europee
 import sys
 import os
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, filedialog
+from tkinter import ttk, messagebox, scrolledtext, filedialog, simpledialog
 import threading
 from datetime import datetime
+import subprocess
+import platform
 
 # Verifica versione Python
 if sys.version_info < (3, 8):
@@ -18,6 +20,7 @@ from vies_api import VIESChecker
 from database import VATDatabase
 from excel_export import ExcelExporter
 from settings import Settings
+from pdf_printer import PDFPrinter
 
 
 class VIESCheckerGUI:
@@ -27,7 +30,7 @@ class VIESCheckerGUI:
         """Inizializza l'interfaccia grafica"""
         self.root = root
         self.root.title("VIES Checker - Verifica Partite IVA Europee")
-        self.root.geometry("950x750")
+        self.root.geometry("1000x750")
 
         # Configura l'icona (se disponibile)
         try:
@@ -41,10 +44,14 @@ class VIESCheckerGUI:
         self.db = VATDatabase()
         self.exporter = ExcelExporter()
         self.settings = Settings()
+        self.pdf_printer = PDFPrinter()
 
         # Variabili
         self.vat_input_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Pronto")
+
+        # Dizionario per tracking checkbox
+        self.check_vars = {}
 
         # Crea l'interfaccia
         self.create_menu()
@@ -76,7 +83,18 @@ class VIESCheckerGUI:
         file_menu.add_command(label="Esporta tutto in Excel", command=self.export_all)
         file_menu.add_command(label="Esporta statistiche", command=self.export_stats)
         file_menu.add_separator()
+        file_menu.add_command(label="Stampa selezionate...", command=self.print_selected)
+        file_menu.add_separator()
         file_menu.add_command(label="Esci", command=self.root.quit)
+
+        # Menu Azioni
+        actions_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Azioni", menu=actions_menu)
+        actions_menu.add_command(label="Aggiorna selezionate", command=self.update_selected)
+        actions_menu.add_command(label="Aggiorna tutte", command=self.update_all)
+        actions_menu.add_separator()
+        actions_menu.add_command(label="Seleziona tutto", command=self.select_all)
+        actions_menu.add_command(label="Deseleziona tutto", command=self.deselect_all)
 
         # Menu Impostazioni
         settings_menu = tk.Menu(menubar, tearoff=0)
@@ -152,39 +170,50 @@ class VIESCheckerGUI:
         history_frame.columnconfigure(0, weight=1)
         history_frame.rowconfigure(0, weight=1)
 
-        # Treeview per lo storico
-        columns = ('ID', 'P.IVA', 'Valida', 'Nome/Ragione Sociale', 'Data')
-        self.history_tree = ttk.Treeview(history_frame, columns=columns, show='headings', height=10)
+        # Frame per treeview e scrollbar
+        tree_frame = ttk.Frame(history_frame)
+        tree_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        tree_frame.columnconfigure(0, weight=1)
+        tree_frame.rowconfigure(0, weight=1)
+
+        # Treeview per lo storico con checkbox
+        columns = ('Sel', 'ID', 'P.IVA', 'Valida', 'Nome/Ragione Sociale', 'Data')
+        self.history_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=10)
 
         # Configura colonne
+        self.history_tree.heading('Sel', text='☐', command=self.toggle_all_checkboxes)
         self.history_tree.heading('ID', text='ID')
         self.history_tree.heading('P.IVA', text='Partita IVA')
         self.history_tree.heading('Valida', text='Valida')
         self.history_tree.heading('Nome/Ragione Sociale', text='Nome/Ragione Sociale')
         self.history_tree.heading('Data', text='Data Verifica')
 
+        self.history_tree.column('Sel', width=40, anchor=tk.CENTER)
         self.history_tree.column('ID', width=50, anchor=tk.CENTER)
-        self.history_tree.column('P.IVA', width=150)
-        self.history_tree.column('Valida', width=80, anchor=tk.CENTER)
+        self.history_tree.column('P.IVA', width=130)
+        self.history_tree.column('Valida', width=70, anchor=tk.CENTER)
         self.history_tree.column('Nome/Ragione Sociale', width=300)
-        self.history_tree.column('Data', width=150)
+        self.history_tree.column('Data', width=140)
 
         # Scrollbar per treeview
-        scrollbar = ttk.Scrollbar(history_frame, orient=tk.VERTICAL, command=self.history_tree.yview)
+        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.history_tree.yview)
         self.history_tree.configure(yscroll=scrollbar.set)
 
         self.history_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
 
-        # Bind doppio click per visualizzare dettagli
+        # Bind eventi
         self.history_tree.bind('<Double-1>', self.show_detail)
+        self.history_tree.bind('<Button-1>', self.on_tree_click)
 
         # Pulsanti azioni
         button_frame = ttk.Frame(history_frame)
         button_frame.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(10, 0))
 
         ttk.Button(button_frame, text="Aggiorna Lista", command=self.refresh_history).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="Elimina Selezionata", command=self.delete_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Aggiorna Selezionate", command=self.update_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Stampa Selezionate", command=self.print_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Elimina Selezionate", command=self.delete_selected).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Esporta in Excel", command=self.export_all).pack(side=tk.LEFT)
 
         # --- BARRA DI STATO ---
@@ -195,13 +224,90 @@ class VIESCheckerGUI:
         status_label = ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         status_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
+    def on_tree_click(self, event):
+        """Gestisce il click sulla treeview"""
+        region = self.history_tree.identify("region", event.x, event.y)
+        if region == "heading":
+            return  # Gestito da toggle_all_checkboxes
+
+        column = self.history_tree.identify_column(event.x)
+        if column == '#1':  # Colonna checkbox
+            item = self.history_tree.identify_row(event.y)
+            if item:
+                self.toggle_checkbox(item)
+
+    def toggle_checkbox(self, item):
+        """Alterna lo stato della checkbox per un item"""
+        current_value = self.history_tree.item(item, 'values')[0]
+        new_value = '☐' if current_value == '☑' else '☑'
+
+        values = list(self.history_tree.item(item, 'values'))
+        values[0] = new_value
+        self.history_tree.item(item, values=values)
+
+    def toggle_all_checkboxes(self):
+        """Alterna tutte le checkbox"""
+        items = self.history_tree.get_children()
+        if not items:
+            return
+
+        # Controlla se almeno una è selezionata
+        any_checked = any(self.history_tree.item(item, 'values')[0] == '☑' for item in items)
+
+        # Se almeno una è selezionata, deseleziona tutto, altrimenti seleziona tutto
+        new_value = '☐' if any_checked else '☑'
+
+        for item in items:
+            values = list(self.history_tree.item(item, 'values'))
+            values[0] = new_value
+            self.history_tree.item(item, values=values)
+
+        # Aggiorna l'header
+        self.history_tree.heading('Sel', text=new_value)
+
+    def select_all(self):
+        """Seleziona tutte le verifiche"""
+        for item in self.history_tree.get_children():
+            values = list(self.history_tree.item(item, 'values'))
+            values[0] = '☑'
+            self.history_tree.item(item, values=values)
+        self.history_tree.heading('Sel', text='☑')
+
+    def deselect_all(self):
+        """Deseleziona tutte le verifiche"""
+        for item in self.history_tree.get_children():
+            values = list(self.history_tree.item(item, 'values'))
+            values[0] = '☐'
+            self.history_tree.item(item, values=values)
+        self.history_tree.heading('Sel', text='☐')
+
+    def get_selected_items(self):
+        """Restituisce gli ID delle verifiche selezionate"""
+        selected_ids = []
+        for item in self.history_tree.get_children():
+            values = self.history_tree.item(item, 'values')
+            if values[0] == '☑':  # Checkbox selezionata
+                selected_ids.append(values[1])  # ID
+        return selected_ids
+
     def verify_vat(self):
         """Verifica una partita IVA"""
-        vat_number = self.vat_input_var.get().strip()
+        vat_number = self.vat_input_var.get().strip().upper()
 
         if not vat_number:
             messagebox.showwarning("Attenzione", "Inserisci una partita IVA da verificare")
             return
+
+        # Controlla se è un duplicato
+        duplicate = self.db.check_duplicate(vat_number, hours=24)
+        if duplicate:
+            msg = f"La partita IVA {vat_number} è già stata verificata nelle ultime 24 ore.\n\n"
+            msg += f"Ultima verifica: {duplicate['request_date']}\n"
+            msg += f"Risultato: {'VALIDA' if duplicate['valid'] else 'NON VALIDA'}\n\n"
+            msg += "Vuoi procedere comunque con una nuova verifica?"
+
+            if not messagebox.askyesno("Duplicato rilevato", msg):
+                return
 
         # Esegue la verifica in un thread separato per non bloccare l'interfaccia
         self.status_var.set(f"Verifica in corso per {vat_number}...")
@@ -285,6 +391,9 @@ class VIESCheckerGUI:
         else:
             self.status_var.set(f"Verifica completata: {result['vat_number']} - NON VALIDA")
 
+        # Pulisci il campo input
+        self.vat_input_var.set("")
+
     def _display_error(self, error_msg):
         """Visualizza un errore"""
         self.result_text.delete(1.0, tk.END)
@@ -294,6 +403,9 @@ class VIESCheckerGUI:
 
     def refresh_history(self):
         """Aggiorna la lista delle verifiche recenti"""
+        # Salva lo stato delle checkbox
+        selected_ids = self.get_selected_items()
+
         # Cancella elementi esistenti
         for item in self.history_tree.get_children():
             self.history_tree.delete(item)
@@ -302,6 +414,8 @@ class VIESCheckerGUI:
         checks = self.db.get_all_checks()[:100]
 
         for check in checks:
+            # Determina se era selezionato
+            checkbox = '☑' if str(check['id']) in selected_ids else '☐'
             valid_text = "SI" if check['valid'] else "NO"
             tags = ('valid',) if check['valid'] else ('invalid',)
 
@@ -309,6 +423,7 @@ class VIESCheckerGUI:
                 '',
                 tk.END,
                 values=(
+                    checkbox,
                     check['id'],
                     check['vat_number'],
                     valid_text,
@@ -326,12 +441,17 @@ class VIESCheckerGUI:
 
     def show_detail(self, event):
         """Mostra i dettagli di una verifica selezionata"""
+        # Non fare nulla se si clicca sulla colonna checkbox
+        column = self.history_tree.identify_column(event.x)
+        if column == '#1':
+            return
+
         selection = self.history_tree.selection()
         if not selection:
             return
 
         item = self.history_tree.item(selection[0])
-        check_id = item['values'][0]
+        check_id = item['values'][1]  # ID è nella seconda colonna
 
         # Cerca la verifica nel database
         checks = self.db.get_all_checks()
@@ -341,22 +461,142 @@ class VIESCheckerGUI:
             self._display_result(check)
 
     def delete_selected(self):
-        """Elimina la verifica selezionata"""
-        selection = self.history_tree.selection()
-        if not selection:
-            messagebox.showwarning("Attenzione", "Seleziona una verifica da eliminare")
+        """Elimina le verifiche selezionate"""
+        selected_ids = self.get_selected_items()
+
+        if not selected_ids:
+            messagebox.showwarning("Attenzione", "Seleziona almeno una verifica da eliminare")
             return
 
-        item = self.history_tree.item(selection[0])
-        check_id = item['values'][0]
-        vat_number = item['values'][1]
+        if messagebox.askyesno("Conferma", f"Eliminare {len(selected_ids)} verifica/e selezionata/e?"):
+            deleted = 0
+            for check_id in selected_ids:
+                if self.db.delete_check(int(check_id)):
+                    deleted += 1
 
-        if messagebox.askyesno("Conferma", f"Eliminare la verifica per {vat_number}?"):
-            if self.db.delete_check(check_id):
-                messagebox.showinfo("Successo", "Verifica eliminata")
-                self.refresh_history()
-            else:
-                messagebox.showerror("Errore", "Impossibile eliminare la verifica")
+            messagebox.showinfo("Successo", f"{deleted} verifica/e eliminata/e")
+            self.refresh_history()
+
+    def update_selected(self):
+        """Aggiorna le verifiche selezionate"""
+        selected_ids = self.get_selected_items()
+
+        if not selected_ids:
+            messagebox.showinfo("Info", "Nessuna verifica selezionata. Verrà aggiornato tutto lo storico.")
+            self.update_all()
+            return
+
+        if not messagebox.askyesno("Conferma", f"Aggiornare {len(selected_ids)} verifica/e selezionata/e?"):
+            return
+
+        # Ottiene le verifiche da aggiornare
+        checks = self.db.get_all_checks()
+        to_update = [c for c in checks if str(c['id']) in selected_ids]
+
+        self._update_checks_thread(to_update)
+
+    def update_all(self):
+        """Aggiorna tutte le verifiche"""
+        if not messagebox.askyesno("Conferma", "Aggiornare tutte le verifiche dello storico?\nQuesta operazione potrebbe richiedere diversi minuti."):
+            return
+
+        checks = self.db.get_all_checks()
+        self._update_checks_thread(checks)
+
+    def _update_checks_thread(self, checks):
+        """Aggiorna le verifiche in background"""
+        def update_worker():
+            try:
+                # Inizializza il checker se necessario
+                if self.checker is None:
+                    self.checker = VIESChecker()
+
+                requester_vat = self.settings.get_requester_vat()
+
+                total = len(checks)
+                updated = 0
+
+                for i, check in enumerate(checks):
+                    # Aggiorna la barra di stato
+                    self.root.after(0, lambda i=i, total=total: self.status_var.set(
+                        f"Aggiornamento in corso... {i+1}/{total}"
+                    ))
+
+                    # Riesegue la verifica
+                    result = self.checker.check_vat(check['vat_number'], requester_vat)
+
+                    # Salva nel database
+                    self.db.save_check(result)
+                    updated += 1
+
+                # Aggiorna l'interfaccia
+                self.root.after(0, lambda: self.refresh_history())
+                self.root.after(0, lambda: self.status_var.set(f"Aggiornamento completato: {updated} verifiche"))
+                self.root.after(0, lambda: messagebox.showinfo("Completato", f"{updated} verifiche aggiornate con successo"))
+
+            except Exception as e:
+                error_msg = f"Errore durante l'aggiornamento: {str(e)}"
+                self.root.after(0, lambda: messagebox.showerror("Errore", error_msg))
+
+        thread = threading.Thread(target=update_worker)
+        thread.daemon = True
+        thread.start()
+
+    def print_selected(self):
+        """Stampa le verifiche selezionate"""
+        selected_ids = self.get_selected_items()
+
+        if not selected_ids:
+            messagebox.showwarning("Attenzione", "Seleziona almeno una verifica da stampare")
+            return
+
+        # Chiedi quante copie
+        copies = simpledialog.askinteger(
+            "Numero Copie",
+            f"Quante copie stampare per ogni verifica?\n({len(selected_ids)} verifiche selezionate)",
+            minvalue=1,
+            maxvalue=10,
+            initialvalue=1
+        )
+
+        if copies is None:
+            return
+
+        # Ottiene le verifiche selezionate
+        checks = self.db.get_all_checks()
+        to_print = [c for c in checks if str(c['id']) in selected_ids]
+
+        # Chiedi il nome del file
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
+            initialfile=f"vat_print_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        )
+
+        if filename:
+            try:
+                self.status_var.set("Generazione PDF in corso...")
+                pdf_file = self.pdf_printer.create_pdf(to_print, filename, copies)
+                self.status_var.set(f"PDF creato: {pdf_file}")
+
+                # Chiedi se aprire il PDF
+                if messagebox.askyesno("PDF Creato", f"PDF creato con successo:\n{pdf_file}\n\nVuoi aprirlo?"):
+                    self.open_file(pdf_file)
+
+            except Exception as e:
+                messagebox.showerror("Errore", f"Errore durante la creazione del PDF:\n{str(e)}")
+
+    def open_file(self, filepath):
+        """Apre un file con l'applicazione predefinita"""
+        try:
+            if platform.system() == 'Windows':
+                os.startfile(filepath)
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', filepath])
+            else:  # Linux
+                subprocess.run(['xdg-open', filepath])
+        except Exception as e:
+            messagebox.showerror("Errore", f"Impossibile aprire il file:\n{str(e)}")
 
     def export_all(self):
         """Esporta tutte le verifiche in Excel"""
@@ -489,14 +729,21 @@ COME USARE VIES CHECKER
    - Questa verrà usata automaticamente per tutte le verifiche
 
 3. STORICO VERIFICHE
-   - Tutte le verifiche vengono salvate automaticamente
+   - Checkbox per selezionare le verifiche
    - Doppio click su una verifica per visualizzare i dettagli
-   - Usa "Elimina Selezionata" per rimuovere una verifica
+   - "Aggiorna Selezionate" per riverificare le P.IVA selezionate
+   - "Stampa Selezionate" per creare PDF da stampare
+   - "Elimina Selezionate" per rimuovere verifiche
 
-4. ESPORTAZIONE
-   - Menu "File" > "Esporta tutto in Excel"
-   - Scegli dove salvare il file Excel
-   - Il file conterrà tutte le verifiche con formattazione
+4. FUNZIONALITÀ STAMPA
+   - Seleziona le verifiche con le checkbox
+   - Clicca "Stampa Selezionate"
+   - Scegli quante copie per verifica
+   - Viene generato un PDF professionale
+
+5. CONTROLLO DUPLICATI
+   - Il programma avvisa se una P.IVA è stata verificata di recente
+   - Puoi scegliere di procedere comunque
 
 Per assistenza: https://github.com/alebaldo94/Vies-Cheker
         """
@@ -507,7 +754,7 @@ Per assistenza: https://github.com/alebaldo94/Vies-Cheker
         """Mostra informazioni sul programma"""
         about_text = """
 VIES CHECKER
-Versione 2.0
+Versione 2.1
 
 Programma per la verifica delle Partite IVA europee
 tramite il servizio VIES della Commissione Europea.
@@ -516,6 +763,10 @@ Caratteristiche:
 • Verifica in tempo reale tramite API VIES ufficiali
 • Salvataggio automatico di tutte le verifiche
 • Configurazione P.IVA richiedente
+• Selezione multipla con checkbox
+• Stampa professionale in PDF
+• Aggiornamento verifiche selezionate
+• Controllo duplicati automatico
 • Esportazione in Excel con formattazione
 • Interfaccia grafica semplice e intuitiva
 
