@@ -1,0 +1,36 @@
+# Partite IVA di Esempio per Test
+
+# Nota: Questi sono esempi di partite IVA pubbliche di grandi aziende.
+# Usale solo per testare il programma.
+# Per verifiche reali, usa sempre le partite IVA effettive dei tuoi clienti/fornitori.
+
+# ITALIA
+IT00743110157
+IT02438750586
+
+# GERMANIA
+DE811569869
+DE129273398
+
+# FRANCIA
+FR40303265045
+FR27451133878
+
+# SPAGNA
+ESA28040290
+ESA78520929
+
+# PAESI BASSI
+NL810663686B01
+NL002230884B01
+
+# BELGIO
+BE0403170701
+BE0426142516
+
+# AUSTRIA
+ATU37675002
+
+# Nota: Alcune di queste partite IVA potrebbero cambiare nel tempo.
+# Verifica sempre sul sito ufficiale VIES per conferme importanti:
+# https://ec.europa.eu/taxation_customs/vies/
