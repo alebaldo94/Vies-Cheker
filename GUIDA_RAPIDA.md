@@ -8,6 +8,12 @@
 
 Fatto! Il programma è pronto all'uso.
 
+**NOTA IMPORTANTE**: Se stai creando l'eseguibile da sorgente e hai Python 3.14, assicurati di installare le dipendenze con:
+```
+pip install -r requirements.txt
+```
+Il file requirements.txt è già configurato per Python 3.14. **Python 4 non esiste ancora!**
+
 ## Primo Utilizzo
 
 Quando avvii il programma vedrai il menu principale:

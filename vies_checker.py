@@ -3,6 +3,23 @@ VIES Checker - Programma per la verifica delle partite IVA europee
 """
 import sys
 import os
+
+# Verifica versione Python
+if sys.version_info < (3, 8):
+    print("=" * 70)
+    print("ERRORE: Versione Python non supportata")
+    print("=" * 70)
+    print(f"\nVersione Python rilevata: {sys.version}")
+    print("\nQuesto programma richiede Python 3.8 o superiore.")
+    print("Python 4 non esiste ancora - l'ultima versione è Python 3.x")
+    print("\nPer favore:")
+    print("1. Scarica Python 3.8 o superiore da: https://www.python.org/downloads/")
+    print("2. Durante l'installazione, seleziona 'Add Python to PATH'")
+    print("3. Riavvia il programma")
+    print("\n" + "=" * 70)
+    input("\nPremi INVIO per uscire...")
+    sys.exit(1)
+
 from vies_api import VIESChecker
 from database import VATDatabase
 from excel_export import ExcelExporter

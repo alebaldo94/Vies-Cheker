@@ -15,7 +15,7 @@ Programma Windows per la verifica delle Partite IVA europee tramite il servizio 
 ## Requisiti
 
 - Windows 7 o superiore (per l'eseguibile)
-- Python 3.8+ (solo per sviluppo)
+- Python 3.8 - 3.14 (solo per sviluppo - **NOTA: Python 4 non esiste ancora!**)
 - Connessione Internet (per accedere alle API VIES)
 
 ## Installazione
@@ -202,16 +202,18 @@ Il programma utilizza il servizio ufficiale VIES della Commissione Europea:
 - Usa lettere maiuscole
 
 ### Errore creazione eseguibile
-- Verifica che Python 3.8+ sia installato
+- Verifica che Python 3.8 - 3.14 sia installato (**Python 4 non esiste!**)
 - Reinstalla le dipendenze: `pip install -r requirements.txt`
-- Verifica che PyInstaller sia correttamente installato
+- Se hai Python 3.14+, assicurati di usare PyInstaller 6.10.0 o superiore
+- Verifica che PyInstaller sia correttamente installato: `pip show pyinstaller`
 
 ## Dipendenze
 
-- **requests** (2.31.0) - HTTP client
-- **openpyxl** (3.1.2) - Lettura/scrittura file Excel
-- **zeep** (4.2.1) - Client SOAP per API VIES
-- **pyinstaller** (6.3.0) - Creazione eseguibili
+- **requests** (>= 2.28.0) - HTTP client
+- **openpyxl** (>= 3.0.10) - Lettura/scrittura file Excel
+- **zeep** (>= 4.1.0) - Client SOAP per API VIES
+- **lxml** (>= 4.9.0) - Parser XML per zeep
+- **pyinstaller** (>= 6.10.0) - Creazione eseguibili (compatibile Python 3.14)
 
 ## Licenza
 
