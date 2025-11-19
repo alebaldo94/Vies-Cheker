@@ -163,9 +163,9 @@ class PDFPrinter:
                     Paragraph(check['requester_vat'], self.styles['Value'])
                 ])
 
-            # Data verifica
+            # Data ultima verifica
             data.append([
-                Paragraph("<b>Data Verifica:</b>", self.styles['Label']),
+                Paragraph("<b>Data Ultima Verifica:</b>", self.styles['Label']),
                 Paragraph(check['request_date'], self.styles['Value'])
             ])
 

@@ -268,6 +268,62 @@ class VATDatabase:
             'unique_vats': unique_vats
         }
 
+    def update_check_by_vat(self, vat_number, check_result):
+        """
+        Aggiorna una verifica esistente per una specifica partita IVA
+        Se non esiste, la crea
+
+        Args:
+            vat_number (str): Partita IVA da aggiornare
+            check_result (dict): Risultato della verifica VIES
+
+        Returns:
+            bool: True se aggiornato, False se creato nuovo
+        """
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        # Cerca se esiste già un record per questa P.IVA
+        cursor.execute('''
+            SELECT id FROM vat_checks
+            WHERE vat_number = ?
+            ORDER BY request_date DESC
+            LIMIT 1
+        ''', (vat_number.strip().upper(),))
+
+        existing = cursor.fetchone()
+
+        if existing:
+            # Aggiorna il record esistente
+            cursor.execute('''
+                UPDATE vat_checks
+                SET country_code = ?,
+                    valid = ?,
+                    name = ?,
+                    address = ?,
+                    requester_vat = ?,
+                    request_date = ?,
+                    error = ?
+                WHERE id = ?
+            ''', (
+                check_result['country_code'],
+                1 if check_result['valid'] else 0,
+                check_result['name'],
+                check_result['address'],
+                check_result.get('requester_vat', ''),
+                check_result['request_date'],
+                check_result['error'],
+                existing['id']
+            ))
+            conn.commit()
+            self.close()
+            return True
+        else:
+            # Crea nuovo record
+            self.close()
+            self.save_check(check_result)
+            return False
+
     def check_duplicate(self, vat_number, hours=24):
         """
         Verifica se una partita IVA è stata controllata recentemente

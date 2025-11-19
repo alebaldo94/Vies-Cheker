@@ -196,7 +196,7 @@ class VIESCheckerGUI:
         self.history_tree.heading('P.IVA', text='Partita IVA')
         self.history_tree.heading('Valida', text='Valida')
         self.history_tree.heading('Nome/Ragione Sociale', text='Nome/Ragione Sociale')
-        self.history_tree.heading('Data', text='Data Verifica')
+        self.history_tree.heading('Data', text='Data Ultima Verifica')
 
         self.history_tree.column('Sel', width=40, anchor=tk.CENTER)
         self.history_tree.column('ID', width=50, anchor=tk.CENTER)
@@ -215,16 +215,6 @@ class VIESCheckerGUI:
         # Bind eventi
         self.history_tree.bind('<Double-1>', self.show_detail)
         self.history_tree.bind('<Button-1>', self.on_tree_click)
-
-        # Pulsanti azioni
-        button_frame = ttk.Frame(history_frame)
-        button_frame.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(10, 0))
-
-        ttk.Button(button_frame, text="Aggiorna Lista", command=self.refresh_history).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="Aggiorna Selezionate", command=self.update_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="Stampa Selezionate", command=self.print_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="Elimina Selezionate", command=self.delete_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="Esporta in Excel", command=self.export_all).pack(side=tk.LEFT)
 
         # --- BARRA DI STATO ---
         status_frame = ttk.Frame(main_frame)
@@ -383,7 +373,7 @@ class VIESCheckerGUI:
             self.result_text.insert(tk.END, f"\nP.IVA Richiedente: ", 'label')
             self.result_text.insert(tk.END, f"{result['requester_vat']}\n")
 
-        self.result_text.insert(tk.END, f"\nData Verifica: ", 'label')
+        self.result_text.insert(tk.END, f"\nData Ultima Verifica: ", 'label')
         self.result_text.insert(tk.END, f"{result['request_date']}\n")
 
         if result['error']:
@@ -535,8 +525,8 @@ class VIESCheckerGUI:
                     # Riesegue la verifica
                     result = self.checker.check_vat(check['vat_number'], requester_vat)
 
-                    # Salva nel database
-                    self.db.save_check(result)
+                    # AGGIORNA il record esistente invece di crearne uno nuovo
+                    self.db.update_check_by_vat(check['vat_number'], result)
                     updated += 1
 
                 # Aggiorna l'interfaccia
