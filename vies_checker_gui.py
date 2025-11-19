@@ -153,7 +153,8 @@ class VIESCheckerGUI:
         ttk.Button(quick_actions_frame, text="Seleziona Tutti", command=self.select_all).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(quick_actions_frame, text="Deseleziona Tutti", command=self.deselect_all).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(quick_actions_frame, text="Aggiorna Selezionati", command=self.update_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(quick_actions_frame, text="Stampa Selezionati", command=self.print_selected).pack(side=tk.LEFT)
+        ttk.Button(quick_actions_frame, text="Stampa Selezionati", command=self.print_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(quick_actions_frame, text="Elimina Selezionati", command=self.delete_selected).pack(side=tk.LEFT)
 
         # --- SEZIONE RISULTATO ---
         result_frame = ttk.LabelFrame(main_frame, text="Risultato Verifica", padding="10")
