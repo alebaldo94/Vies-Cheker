@@ -2,11 +2,17 @@
 
 Programma Windows per la verifica delle Partite IVA europee tramite il servizio VIES (VAT Information Exchange System) della Commissione Europea.
 
+**DISPONIBILE IN 2 VERSIONI:**
+- 🖥️ **Interfaccia Grafica (GUI)** - Facile da usare, ideale per tutti
+- ⌨️ **Linea di Comando (CLI)** - Per utenti avanzati
+
 ## Caratteristiche
 
 ✅ **Verifica Partite IVA** - Controllo in tempo reale tramite API VIES ufficiali
 ✅ **Memorizzazione Dati** - Salvataggio automatico di tutte le verifiche in database SQLite
-✅ **Verifica Multipla** - Controllo di più partite IVA in una singola sessione
+✅ **P.IVA Richiedente** - Configurazione permanente della tua partita IVA
+✅ **Interfaccia Grafica** - GUI semplice e intuitiva con tkinter
+✅ **Verifica Multipla** - Controllo di più partite IVA in una singola sessione (CLI)
 ✅ **Esportazione Excel** - Genera report in formato Excel con formattazione
 ✅ **Aggiornamento** - Aggiorna le verifiche esistenti quando necessario
 ✅ **Statistiche** - Visualizza e esporta statistiche sulle verifiche effettuate
@@ -20,13 +26,23 @@ Programma Windows per la verifica delle Partite IVA europee tramite il servizio 
 
 ## Installazione
 
-### Opzione 1: Usa l'Eseguibile (Consigliato)
+### Opzione 1: Usa l'Eseguibile con Interfaccia Grafica (Consigliato)
+
+1. Scarica `VIESCheckerGUI.exe` dalla cartella `dist`
+2. Copia l'eseguibile dove preferisci
+3. Doppio click su `VIESCheckerGUI.exe`
+
+**Ideale per**: Tutti gli utenti, specialmente chi ha poche competenze informatiche
+
+### Opzione 2: Usa l'Eseguibile CLI
 
 1. Scarica `VIESChecker.exe` dalla cartella `dist`
 2. Copia l'eseguibile dove preferisci
-3. Esegui `VIESChecker.exe`
+3. Esegui `VIESChecker.exe` da terminale
 
-**Nota**: Il database `vat_data.db` e i file Excel esportati verranno creati nella stessa cartella dell'eseguibile.
+**Ideale per**: Utenti avanzati, automazioni, script
+
+**Nota**: Il database `vat_data.db`, le impostazioni `vies_settings.json` e i file Excel esportati verranno creati nella stessa cartella dell'eseguibile.
 
 ### Opzione 2: Esegui da Sorgente Python
 
@@ -42,6 +58,13 @@ Programma Windows per la verifica delle Partite IVA europee tramite il servizio 
    ```
 
 3. Esegui il programma:
+
+   **Versione GUI (Grafica):**
+   ```bash
+   python vies_checker_gui.py
+   ```
+
+   **Versione CLI (Terminale):**
    ```bash
    python vies_checker.py
    ```
@@ -50,20 +73,64 @@ Programma Windows per la verifica delle Partite IVA europee tramite il servizio 
 
 Per creare l'eseguibile Windows da sorgente:
 
-### Su Windows:
+### Versione GUI (Interfaccia Grafica)
+
+**Su Windows:**
+```batch
+build_gui.bat
+```
+
+**Su Linux/Mac:**
+```bash
+chmod +x build_gui.sh
+./build_gui.sh
+```
+
+L'eseguibile `VIESCheckerGUI.exe` (o `VIESCheckerGUI` su Linux/Mac) verrà creato nella cartella `dist/`.
+
+### Versione CLI (Linea di Comando)
+
+**Su Windows:**
 ```batch
 build_exe.bat
 ```
 
-### Su Linux/Mac:
+**Su Linux/Mac:**
 ```bash
 chmod +x build_exe.sh
 ./build_exe.sh
 ```
 
-L'eseguibile verrà creato nella cartella `dist/`.
+L'eseguibile `VIESChecker.exe` (o `VIESChecker` su Linux/Mac) verrà creato nella cartella `dist/`.
 
 ## Utilizzo
+
+### Interfaccia Grafica (GUI) - Raccomandata
+
+L'interfaccia grafica è la soluzione più semplice per tutti gli utenti:
+
+1. **Avvia il programma** - Doppio click su `VIESCheckerGUI.exe`
+2. **Inserisci la Partita IVA** - Digita nel campo "Partita IVA" (es. IT12345678901)
+3. **Clicca "Verifica"** - O premi INVIO
+4. **Visualizza il risultato** - Nella sezione "Risultato Verifica"
+
+#### Configurare la P.IVA Richiedente (Opzionale ma Raccomandato)
+
+1. **Menu Impostazioni** > **Configura P.IVA Richiedente**
+2. **Inserisci la tua P.IVA** (es. IT00000000000)
+3. **Clicca "Salva"**
+4. Questa P.IVA verrà usata automaticamente per tutte le verifiche future
+
+#### Funzionalità GUI
+
+- **Visualizzazione risultati** - Risultati colorati (verde=valida, rosso=non valida)
+- **Storico verifiche** - Lista di tutte le verifiche effettuate
+- **Doppio click** - Su una verifica per visualizzare i dettagli
+- **Esportazione Excel** - Menu File > Esporta tutto in Excel
+- **Statistiche** - Menu File > Esporta statistiche
+- **Eliminazione** - Seleziona una verifica e clicca "Elimina Selezionata"
+
+### Interfaccia CLI (Linea di Comando)
 
 Avvia il programma ed esplora il menu interattivo:
 
@@ -135,10 +202,17 @@ Il programma utilizza SQLite per memorizzare:
 - Validità (SI/NO)
 - Nome/Ragione sociale
 - Indirizzo
+- P.IVA Richiedente (se configurata)
 - Data e ora della verifica
 - Eventuali errori
 
 Il database viene creato automaticamente al primo avvio come `vat_data.db`.
+
+## Impostazioni
+
+Le impostazioni vengono salvate nel file `vies_settings.json`:
+- P.IVA Richiedente configurata
+- Preferenze dell'interfaccia (dimensioni finestra, tema, ecc.)
 
 ## Export Excel
 
@@ -165,15 +239,22 @@ I file Excel esportati includono:
 
 ```
 Vies-Cheker/
-├── vies_checker.py      # Applicazione principale
-├── vies_api.py          # Modulo per API VIES
-├── database.py          # Modulo database SQLite
-├── excel_export.py      # Modulo esportazione Excel
-├── requirements.txt     # Dipendenze Python
-├── build_exe.bat        # Script build Windows
-├── build_exe.sh         # Script build Linux/Mac
-├── .gitignore          # File da ignorare
-└── README.md           # Questo file
+├── vies_checker_gui.py     # Applicazione GUI (Interfaccia Grafica) ⭐ NUOVO
+├── vies_checker.py         # Applicazione CLI (Linea di comando)
+├── vies_api.py             # Modulo per API VIES (con supporto requesterVat)
+├── database.py             # Modulo database SQLite
+├── excel_export.py         # Modulo esportazione Excel
+├── settings.py             # Modulo gestione impostazioni ⭐ NUOVO
+├── requirements.txt        # Dipendenze Python
+├── build_gui.bat           # Script build GUI Windows ⭐ NUOVO
+├── build_gui.sh            # Script build GUI Linux/Mac ⭐ NUOVO
+├── build_exe.bat           # Script build CLI Windows
+├── build_exe.sh            # Script build CLI Linux/Mac
+├── GUIDA_RAPIDA.md         # Guida rapida
+├── PYTHON_3.14_SETUP.md    # Guida setup Python 3.14
+├── partite_iva_esempio.txt # Esempi partite IVA per test
+├── .gitignore              # File da ignorare
+└── README.md               # Questo file
 ```
 
 ## API VIES

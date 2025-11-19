@@ -29,6 +29,9 @@ wheels/
 *.sqlite3
 vat_data.db
 
+# Settings
+vies_settings.json
+
 # Excel exports
 *.xlsx
 *.xls

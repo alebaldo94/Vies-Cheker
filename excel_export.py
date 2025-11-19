@@ -45,6 +45,7 @@ class ExcelExporter:
             'Valida',
             'Nome/Ragione Sociale',
             'Indirizzo',
+            'P.IVA Richiedente',
             'Data Verifica',
             'Errore'
         ]
@@ -81,8 +82,9 @@ class ExcelExporter:
 
             ws.cell(row=row_num, column=5, value=record.get('name', ''))
             ws.cell(row=row_num, column=6, value=record.get('address', ''))
-            ws.cell(row=row_num, column=7, value=record.get('request_date', ''))
-            ws.cell(row=row_num, column=8, value=record.get('error', ''))
+            ws.cell(row=row_num, column=7, value=record.get('requester_vat', ''))
+            ws.cell(row=row_num, column=8, value=record.get('request_date', ''))
+            ws.cell(row=row_num, column=9, value=record.get('error', ''))
 
         # Regola la larghezza delle colonne
         column_widths = {
@@ -92,8 +94,9 @@ class ExcelExporter:
             'D': 10,  # Valida
             'E': 35,  # Nome
             'F': 50,  # Indirizzo
-            'G': 20,  # Data
-            'H': 30   # Errore
+            'G': 18,  # P.IVA Richiedente
+            'H': 20,  # Data
+            'I': 30   # Errore
         }
 
         for column, width in column_widths.items():

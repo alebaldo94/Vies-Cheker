@@ -42,12 +42,13 @@ class VIESChecker:
 
         return country_code, number
 
-    def check_vat(self, vat_number):
+    def check_vat(self, vat_number, requester_vat=None):
         """
         Verifica una partita IVA tramite VIES
 
         Args:
             vat_number (str): Partita IVA da verificare
+            requester_vat (str, optional): Partita IVA del richiedente
 
         Returns:
             dict: Dizionario con i risultati della verifica
@@ -55,11 +56,24 @@ class VIESChecker:
         try:
             country_code, number = self.parse_vat_number(vat_number)
 
+            # Prepara i parametri per la chiamata VIES
+            params = {
+                'countryCode': country_code,
+                'vatNumber': number
+            }
+
+            # Aggiunge requesterVat se fornito
+            if requester_vat:
+                try:
+                    req_country, req_number = self.parse_vat_number(requester_vat)
+                    params['requesterCountryCode'] = req_country
+                    params['requesterVatNumber'] = req_number
+                except ValueError:
+                    # Se requester_vat non è valido, continua senza
+                    pass
+
             # Chiamata al servizio VIES
-            result = self.client.service.checkVat(
-                countryCode=country_code,
-                vatNumber=number
-            )
+            result = self.client.service.checkVat(**params)
 
             return {
                 'vat_number': f"{country_code}{number}",
@@ -67,6 +81,7 @@ class VIESChecker:
                 'valid': result.valid,
                 'name': result.name or '',
                 'address': result.address or '',
+                'requester_vat': requester_vat or '',
                 'request_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'error': None
             }
@@ -79,6 +94,7 @@ class VIESChecker:
                 'valid': False,
                 'name': '',
                 'address': '',
+                'requester_vat': requester_vat or '',
                 'request_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'error': f"Errore VIES: {str(e)}"
             }
@@ -91,6 +107,7 @@ class VIESChecker:
                 'valid': False,
                 'name': '',
                 'address': '',
+                'requester_vat': requester_vat or '',
                 'request_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'error': str(e)
             }
@@ -103,6 +120,7 @@ class VIESChecker:
                 'valid': False,
                 'name': '',
                 'address': '',
+                'requester_vat': requester_vat or '',
                 'request_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'error': f"Errore generico: {str(e)}"
             }

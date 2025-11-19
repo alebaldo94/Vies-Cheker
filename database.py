@@ -44,11 +44,20 @@ class VATDatabase:
                 valid INTEGER,
                 name TEXT,
                 address TEXT,
+                requester_vat TEXT,
                 request_date TEXT,
                 error TEXT,
                 UNIQUE(vat_number, request_date)
             )
         ''')
+
+        # Aggiunge la colonna requester_vat se la tabella esiste già senza questa colonna
+        try:
+            cursor.execute('ALTER TABLE vat_checks ADD COLUMN requester_vat TEXT')
+            conn.commit()
+        except sqlite3.OperationalError:
+            # La colonna esiste già
+            pass
 
         # Crea un indice per velocizzare le ricerche
         cursor.execute('''
@@ -74,14 +83,15 @@ class VATDatabase:
 
         cursor.execute('''
             INSERT INTO vat_checks
-            (vat_number, country_code, valid, name, address, request_date, error)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (vat_number, country_code, valid, name, address, requester_vat, request_date, error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             check_result['vat_number'],
             check_result['country_code'],
             1 if check_result['valid'] else 0,
             check_result['name'],
             check_result['address'],
+            check_result.get('requester_vat', ''),
             check_result['request_date'],
             check_result['error']
         ))
@@ -119,6 +129,7 @@ class VATDatabase:
                 'valid': bool(row['valid']),
                 'name': row['name'],
                 'address': row['address'],
+                'requester_vat': row.get('requester_vat', '') if isinstance(row, dict) else (row['requester_vat'] if 'requester_vat' in row.keys() else ''),
                 'request_date': row['request_date'],
                 'error': row['error']
             })
@@ -156,6 +167,7 @@ class VATDatabase:
                 'valid': bool(row['valid']),
                 'name': row['name'],
                 'address': row['address'],
+                'requester_vat': row.get('requester_vat', '') if isinstance(row, dict) else (row['requester_vat'] if 'requester_vat' in row.keys() else ''),
                 'request_date': row['request_date'],
                 'error': row['error']
             })
@@ -193,6 +205,7 @@ class VATDatabase:
                 'valid': bool(row['valid']),
                 'name': row['name'],
                 'address': row['address'],
+                'requester_vat': row['requester_vat'] if 'requester_vat' in row.keys() else '',
                 'request_date': row['request_date'],
                 'error': row['error']
             }
